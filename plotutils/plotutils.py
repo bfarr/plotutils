@@ -215,7 +215,9 @@ def plot_interval(pts, levels, *args, **kwargs):
         pp.axvline(low, *args, **kwargs)
         pp.axvline(high, *args, **kwargs)
 
-def plot_greedy_kde_interval_2d(pts, levels, xmin=None, xmax=None, ymin=None, ymax=None, Nx=100, Ny=100, cmap=None, colors=None, *args, **kwargs):
+def plot_greedy_kde_interval_2d(pts, levels, xmin=None, xmax=None, ymin=None, ymax=None,
+                                xlow=None, xhigh=None, ylow=None, yhigh=None,
+                                transform=None, Nx=100, Ny=100, cmap=None, colors=None, *args, **kwargs):
     """Plots the given probability interval contours, using a greedy
     selection algorithm.  Additional arguments passed to
     :func:`pp.contour`.
@@ -238,9 +240,21 @@ def plot_greedy_kde_interval_2d(pts, levels, xmin=None, xmax=None, ymin=None, ym
 
     :param ymin: Minimum value in y.  If ``None``, use minimum data
       value.
-    
+
     :param ymax: Maximum value in y.  If ``None``, use minimum data
       value.
+
+    :param xlow: If not ``None``, indicates a lower boundary for the
+      x domain of the PDF.
+
+    :param xhigh: If not ``None``, indicates an upper boundary for the
+      x domain of the PDF.
+
+    :param ylow: If not ``None``, indicates a lower boundary for the
+      y domain of the PDF.
+
+    :param yhigh: If not ``None``, indicates an upper boundary for the
+      y domain of the PDF.
 
     :param Nx: Number of subdivisions in x for contour plot.  (Default
       100.)
@@ -256,14 +270,17 @@ def plot_greedy_kde_interval_2d(pts, levels, xmin=None, xmax=None, ymin=None, ym
 
     Npts=pts.shape[0]
 
-    kde_pts = pts[:Npts/2,:]
-    den_pts = pts[Npts/2:,:]
+    if transform is None:
+        transform = lambda x: x
+
+    kde_pts = transform(pts[:Npts/2,:])
+    den_pts = transform(pts[Npts/2:,:])
 
     Nkde = kde_pts.shape[0]
     Nden = den_pts.shape[0]
 
-    kde=ss.gaussian_kde(kde_pts.T)
-    den=kde(den_pts.T)
+    kde=bk.Bounded_2d_kde(kde_pts, xlow=xlow, xhigh=xhigh, ylow=ylow, yhigh=yhigh)
+    den=kde(den_pts)
     densort=np.sort(den)[::-1]
 
     if xmin is None:
@@ -279,7 +296,7 @@ def plot_greedy_kde_interval_2d(pts, levels, xmin=None, xmax=None, ymin=None, ym
     ys = np.linspace(ymin, ymax, Ny)
 
     XS,YS=np.meshgrid(xs,ys)
-    ZS=np.reshape(kde(np.row_stack((XS.flatten(), YS.flatten()))), (Nx, Ny))
+    ZS=np.reshape(kde(transform(np.column_stack((XS.flatten(), YS.flatten())))), (Nx, Ny))
 
     zvalues=[]
     for level in levels:
